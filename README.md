@@ -1,6 +1,6 @@
 # DNL Rewriter
 
-This repository contains data and code related to our paper submitted to the 6th Workshop on Gender Bias in NLP which is scheduled to have place at ACL 2025. 
+This repository contains data and code related to our paper "Fine-Tuning vs Prompting Techniques for Gender-Fair Rewriting of Machine Translations", submitted to the 6th Workshop on Gender Bias in NLP which is scheduled to have place at ACL 2025. 
 
 ## Data
 * The `data` folder contains the manual DNL reformulations that we add to the source datasets we used to create our task-specific training dataset. 
