@@ -127,7 +127,7 @@ def preprocess_data(ref_col:str, workflow:str, prefix:bool, sentinel:bool, langu
     
     return test
 
-def get_predictions(tokenizer, model, test:list, ref_col:str) -> list:
+def get_predictions(tokenizer, model, test:Dataset, ref_col:str) -> list:
     sents = test[f"{ref_col}"]
     predictions = []
 
@@ -171,7 +171,7 @@ def write_predictions(predictions:list, logging_dir:str, save_model_name:str) ->
     with open(f"{logging_dir}/{save_model_name}_predictions.txt.clean", "a+", encoding="utf-8") as wf:
         for i, pred in enumerate(predictions):
             wf.write(f"{pred}\n")
-        print(f"\r{i}/{len(predictions)} predictions written", end="", flush=True)
+            print(f"\r{i}/{len(predictions)} predictions written", end="", flush=True)
     print()
 
     print(f"Find outputs at {logging_dir}/{save_model_name}_predictions.txt.clean")
@@ -204,8 +204,13 @@ def main(args):
     # Create folder + file name
     if args.prefix == True:
         save_model_name = f"{model_name}_prefix"
+    else:
+        save_model_name = model_name
+    
     if args.sentinel == True:
         save_model_name = f"{model_name}_sentinel"
+    else:
+        save_model_name = model_name
 
     os.makedirs(f"{args.logging_dir}", exist_ok=True)
 

@@ -66,7 +66,7 @@ def collect_preprocess_data(train_data:str, val_data:str, adapted_neogate_dev:st
 
     return train, test
 
-def load_model(model_path:str, access_token:str, quantization:bool, workflow:str):
+def load_model(model_path:str, access_token:str, quantization:int, workflow:str):
     """
     Load correct class for tokenizer and model; model is quantized if necessary. 
 
@@ -130,7 +130,7 @@ def create_prompts(language:str, workflow:str, train_sources:list, train_targets
     
     Returns:
         example_batches (list): A list containing a batch of k example pairs for each request.
-        target_inputs (list): A list containing target inputs, i.e., requests to send to the model. 
+        target_inputs (list): A list containing target inputs, i.e., requests to send the model. 
     """
     # Create open-ended target input (request)
     target_inputs = []
@@ -140,8 +140,12 @@ def create_prompts(language:str, workflow:str, train_sources:list, train_targets
             target_input = f"Original sentence: <{sent}> Rewritten sentence:"
         elif language == "it":
             target_input = f"Frase originale: <{sent}> Riformulazione:"
+        
         if workflow == "seq2seq":
             target_input = f"{target_input} <extra_id_0>" # Add sentinel token
+        else:
+            continue
+        
         target_inputs.append(target_input)
 
     # Create example set
@@ -301,7 +305,7 @@ def get_encoder_outputs(tokenizer, model, example_set:str, target_input:str) -> 
 def kshot_prompt(workflow:str, tokenizer, model, example_batches:list, target_inputs:list) -> list:
     """
     Send prompts and collect outputs (predictions). 
-    This function can work with both decoder-only and encoder-decoder models, but it is only suitable for k-shot prompting. Use no_examples() for 0-shot prompting. Use complete_chat() for chat models. 
+    This function can work with both decoder-only and encoder-decoder models, but it is only suitable for k-shot prompting. Use zeroshot_prompt() for 0-shot prompting. Use complete_chat() for chat models. 
     In the case of encoder-decoder models, this function adopts the "early fusion" approach (more details in paper) by calling get_encoder_outputs(). 
     The arguments for this function can be obtained by calling create_prompts(). 
 
@@ -408,10 +412,10 @@ def zeroshot_prompt(tokenizer, model, language:str, test:list) -> list:
     This function is used for 0-shot prompting; it compiles requests and adds a task description to each request sent. It is only meant for standard (non-chat) decoder-only models when no examples (training data) are provided. It should not be called in combination with add_instructions().
 
     Args:
-        tokenizer: The tokenizer.
-        model: The model.
+        tokenizer: The tokenizer, returned by load_model().
+        model: The model to prompt, returned by load_model().
         language: Either "en" or "it", the language to write prompts. 
-        inputs: A list of requests to send to the model. This can be obtained by calling create_prompts(). 
+        test: A list of requests to send to the model. This can be obtained by calling create_prompts(). 
     
     Returns:
         predictions: A list of semi-post-processed model outputs (one per request).
@@ -495,16 +499,16 @@ def main(args):
     save_model_name = f"{save_model_name}_{args.num_examples}shot"
 
     # Load data
-    train, test = collect_preprocess_data(args.train_data, args.val_data, args.adapted_neogate_dev)
+    train, test = collect_preprocess_data(args.train_path, args.val_path, args.adapted_neogate_dev)
 
     inputs = train["REF"]
     labels = train["SCHWA"]
 
     # Load tokenizer and model
-    tokenizer, model = load_model(f"{args.model_path}", args.hf_token, args.quantization, args.workflow)
+    tokenizer, model = load_model(f"{args.model_path}", args.hf_token, args.quantization, args.framework)
 
-    # Shorten each individual input/label that will be used to create example if necessary to save memory
-    # This way, only examples will be shortened, leaving the prompt template intact
+    # Shorten each individual input/label that will be used to create examples, if necessary to save memory
+    # This way, only examples will be shortened, leaving the instructions and request intact
     if args.example_maxlen != None:
         inputs = [" ".join(inpt.split(" ")[:args.example_maxlen]) for inpt in inputs]
         labels = [" ".join(labl.split(" ")[:args.example_maxlen]) for labl in labels]
@@ -553,7 +557,7 @@ def cli():
     )
     parser.add_argument(
         "--adapted_neogate_dev",
-        default="./data/adapted_neogate/adapted_neogate_dev.ref",
+        default="./adapted_neogate/adapted_neogate_dev.ref",
         help="The path to the sentences from the version of Neo-GATE dev set adapted to your paradigm. Defaults to ./data/adapted_neogate/adapted_neogate_dev.ref"
     )
     parser.add_argument(
@@ -587,7 +591,7 @@ def cli():
         "--example_maxlen",
         type=int,
         default=None,
-        help=""
+        help="If set, inputs and labels will be truncated to this number of tokens when creating example pairs."
     )
     parser.add_argument(
         "--instructions",

@@ -167,8 +167,6 @@ def add_template(ds:Dataset, ref_col:str, target_col:str, language:str) -> Datas
 
 def collect_preprocess_data(train_dataset:str, adapted_neogate_dev:str, workflow:str, language:str):
     """
-    Put together all data preprocessing steps. 
-
     Args:
       train_dataset: Path to the folder containing the training dataset. Files can be obtained by running:
         python scripts/create_my_dataset.py [your Hugging Face token]
@@ -181,11 +179,14 @@ def collect_preprocess_data(train_dataset:str, adapted_neogate_dev:str, workflow
     """
 
     # Load training + validation data
-    train = load_dataset(f"{train_dataset}")["train"].shuffle(seed=42).flatten_indices()
-    val = load_dataset(f"{train_dataset}")["val"]
+    train_df = pd.read_csv(f"{train_dataset}/train.tsv", sep="\t")
+    val_df = pd.read_csv(f"{train_dataset}/val.tsv", sep="\t")
+
+    train = Dataset.from_pandas(train_df).shuffle(seed=42).flatten_indices() # Training split is shuffled
+    val = Dataset.from_pandas(val_df)
 
     # Add Neo-GATE dev set (100 sentences) to validation set
-    neogate_dev_schwa = [l.strip() for l in open(f"{adapted_neogate_dev}", encoding="utf-8").readlines()] # Sentences from the version of Neo-GATE dev set adapted to my paradigm
+    neogate_dev_schwa = [l.strip() for l in open(f"{adapted_neogate_dev}", encoding="utf-8").readlines()] # Sentences from the version of Neo-GATE dev set adapted to specific DNL paradigm
     neogate_dev = load_dataset("FBK-MT/Neo-GATE")["dev"].add_column(name="SCHWA", column=neogate_dev_schwa).to_pandas()
     neogate_dev_ds = Dataset.from_pandas(balance_neogate(neogate_dev))
     val = concatenate_datasets([val, neogate_dev_ds]).shuffle(seed=42).flatten_indices()
@@ -388,28 +389,28 @@ def cli():
 
     parser.add_argument(
         "model_path", 
-        help="The path to the HuggingFace repository for the model"
+        help="The path to the HuggingFace repository containing the model"
     )
     parser.add_argument(
         "workflow", 
         choices=["llm", "seq2seq"], 
-        help="The type of model to train; either 'llm' or 'seq2seq'"
+        help="The type of model architcture; either 'llm' or 'seq2seq'"
     )
     parser.add_argument(
         "--dataset", 
-        default="anonymised/dataset", 
-        help="The path to the training dataset"
+        default="./dataset",
+        help="The path to the training dataset. Defaults to ./dataset"
     )
     parser.add_argument(
         "--adapted_neogate_dev", 
-        default="./data/adapted_neogate/adapted_neogate_dev.ref", 
-        help="The path to the sentences from the version of Neo-GATE dev set adapted to specific paradigm. Defaults to ./data/adapted_neogate/adapted_neogate_dev.ref"
+        default="./adapted_neogate/adapted_neogate_dev.ref", 
+        help="The path to the sentences from the version of Neo-GATE dev set adapted to specific paradigm. Defaults to ./adapted_neogate/adapted_neogate_dev.ref"
     )
     parser.add_argument(
         "--language",
         choices=["en", "it"], 
         default=None, 
-        help="The language to use when writing prompts; either 'en' or 'it'. If not set, defaults to 'it' for models that have 'it' in their name, 'en' otherwise."
+        help="The language to use when writing prompts; either 'en' or 'it'. If not set, will be set to 'it' for models that have 'it' in their name, 'en' otherwise."
     )
     parser.add_argument(
         "--lr", 
@@ -427,7 +428,7 @@ def cli():
         "--batch_size", 
         type=int, 
         default=2, 
-        help="The number of inputs/labels in each batch for training. Defaults to 2. Should be set higher if resources allow."
+        help="The number of inputs/labels in each batch for training. Defaults to 2."
     )
     parser.add_argument(
         "--steps", 
