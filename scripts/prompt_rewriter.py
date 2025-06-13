@@ -409,7 +409,7 @@ def complete_chat(tokenizer, model, messages:list) -> list:
 
 def zeroshot_prompt(tokenizer, model, language:str, test:list) -> list:
     """
-    This function is used for 0-shot prompting; it compiles requests and adds a task description to each request sent. It is only meant for standard (non-chat) decoder-only models when no examples (training data) are provided. It should not be called in combination with add_instructions().
+    This function is used for 0-shot prompting; it compiles requests and adds explicit instructions to each request sent. It is only meant for standard (non-chat) decoder-only models when no examples (training data) are provided. It should not be called in combination with add_instructions().
 
     Args:
         tokenizer: The tokenizer, returned by load_model().
